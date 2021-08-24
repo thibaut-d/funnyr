@@ -1,0 +1,96 @@
+---
+title: "Rebuild and clean the toxic comments classification challenge dataset"
+output: html_notebook
+---
+
+The data set is from the toxic classification challenge.
+
+It has been split into the train set, the features of the test set and the results of the test set. Moreover, lots of labels of the test are not provided so the lines need to be dropped.
+
+Another point to improve is that the sentences are from internet forums and, as it, contain lots of slang, abbreviations, faults...
+
+This notebook is meant to rebuild a clean data set and to export it as a CSV file.
+
+## Load libraries
+
+```{r}
+library(magrittr)
+library(tidyverse)
+source("../cleaners.R")
+source("./parameters.R")
+```
+
+
+## Open the CSV files obtained from Kaggle
+
+```{r}
+train = read_csv("train.csv", col_types = col_types)
+test_text = read_csv("test.csv", col_types = col_types[c(1,2)])
+test_labels = read_csv("test_labels.csv", col_types = col_types[-2])
+
+train
+test_text
+test_labels
+```
+
+## Rebuild a monolithic dataset
+
+Join the labels and the comment_text
+
+```{r}
+test = inner_join(test_text,test_labels,by = "id")
+test
+```
+Join train and test set and drop non available values
+
+```{r}
+df = bind_rows(train,test,.id="split")
+df[1,]
+df[312000,]
+```
+
+Drop columns were labels are not what is awaited.
+
+This is specifically useful to drop trap rows with -1 as labels.
+
+```{r}
+# Ensure that the labels are either O or 1
+df %<>% filter(if_all(c(toxic, severe_toxic,obscene,threat,insult,identity_hate), ~ is.bin(.)))
+df
+```
+Drop NA values
+
+```{r}
+df %<>% drop_na()
+dim(df)
+```
+
+
+
+## Clean the text
+
+We need to make the text more normalized before to tokenize it.
+
+```{r}
+df$comment_text %<>% clean_corpus
+
+df
+```
+
+## Export the dataset
+
+The operation took a while. Let's save the cleaned dataset...
+
+```{r}
+df %<>% drop_na()
+write_csv(df,file="cleaned.csv")
+```
+
+
+
+
+
+
+
+
+

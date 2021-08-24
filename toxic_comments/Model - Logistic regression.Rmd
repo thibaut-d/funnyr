@@ -1,0 +1,94 @@
+---
+title: "Logistic regression"
+output: html_notebook
+---
+
+We will compare some classifiers on the "Toxic" column.
+
+Load libraries
+
+```{r}
+library(tidyverse)
+library(tictoc)
+library(caret)
+library(e1071)
+source("./parameters.R")
+```
+
+
+# Open the Bag of Word with labels
+
+```{r}
+# We open a relatively small Bag of Words in order to limit calculation time
+fileName = "bow_tfidf__min_words_100_2grams_1000__sampling_balanced__cor_cut_1_from_1408_to_1408.csv"
+df = read_csv(fileName, col_types=col_types_df)
+df = df[,-c(2,3,5:9)]
+df
+```
+
+
+# Splitting the data
+
+```{r}
+df_train = df[df[1] == 1,-1]
+df_test  = df[df[1] == 2,-1]
+
+# Let's control the labels balance
+writeLines("Toxic labels in the train set:")
+table(df_train$df_toxic)
+writeLines("\nToxic labels in the test set:")
+table(df_test$df_toxic)
+```
+# Let's start by a minimal implementation of logistic regression
+
+```{r}
+tic("Training: ")
+
+f <- glm(df_toxic ~ ., data=df_train, family = 'binomial')
+
+toc(log = TRUE)
+```
+This takes some time...
+
+What's in f ?
+
+```{r}
+f
+```
+
+
+Let's do the inference on the test set now.
+
+```{r}
+# Split the test set
+X_test = df_test[,-1]
+Y_test = df_test$df_toxic
+
+# Do the inference on the test set
+tic("Inference: ")
+Y_pred <- predict(f,X_test,type='response')
+toc(log = TRUE)
+
+# Add the predictions class and compare to the real values
+predictions = as.data.frame(Y_pred)
+predictions$predictions = round(predictions$Y_pred)
+predictions$real = Y_test
+
+# What does the confusion matrix gives us?
+writeLines("\n")
+mat = confusionMatrix(as.factor(Y_test), as.factor(predictions$predictions))
+mat
+```
+
+```{r}
+print("END: all the notebook ran.")
+Sys.time()
+
+writeLines(paste0("File: ", fileName))
+writeLines(paste0("Accuracy: ", mat$overall[1]))
+writeLines(paste0(tic.log(format = TRUE)[1][1]))
+writeLines(paste0(tic.log(format = TRUE)[2][1]))
+```
+
+
+

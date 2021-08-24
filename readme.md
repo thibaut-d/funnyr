@@ -1,0 +1,3 @@
+# FunnyR
+
+Experiments with R

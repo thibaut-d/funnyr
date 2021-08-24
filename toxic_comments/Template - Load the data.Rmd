@@ -1,0 +1,38 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+We will compare some classifiers on the "Toxic" column.
+
+Load libraries
+
+```{r}
+library(tidyverse)
+source("./parameters.R")
+```
+
+
+# Open the Bag of Word with labels
+
+```{r}
+# We open a relatively small Bag of Words in order to limit calculation time
+df = read_csv("bow_tfidf__min_words_100_2grams_1000__sampling_balanced__cor_cut_0.1_from_1408_to_544_rm0", col_types=col_types_df)
+df = df[,-c(2,3,5:9)]
+df
+```
+
+
+# Splitting the data
+
+```{r}
+df_train = df[df[1] == 1,-1]
+df_test  = df[df[1] == 2,-1]
+
+# Let's control the labels balance
+table(df_train$df_toxic)
+table(df_test$df_toxic)
+```
+
+
+

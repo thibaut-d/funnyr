@@ -1,0 +1,112 @@
+---
+title: "SVM"
+output: html_notebook
+---
+
+We will compare some classifiers on the "Toxic" column.
+
+Load libraries
+
+```{r}
+library(tidyverse)
+library(tictoc)
+library(caret)
+source("./parameters.R")
+```
+
+
+# Open the Bag of Word with labels
+
+```{r}
+# We open a relatively small Bag of Words in order to limit calculation time
+fileName = "bow_tfidf__min_words_100_2grams_1000__sampling_balanced__cor_cut_0.001_from_1408_to_32.csv"
+df = read_csv(fileName, col_types=col_types_df)
+df = df[,-c(2,3,5:9)]
+df
+```
+
+
+# Splitting the data
+
+```{r}
+# Split between train and test
+df_train = df[df[1] == 1,-1]
+df_test  = df[df[1] == 2,-1]
+
+# Split the test set between features and labels
+X_train = df_train[,-1]
+Y_train = as.factor(df_train$df_toxic)
+
+# Split the train set between features and labels
+X_test = df_test[,-1]
+Y_test = as.factor(df_test$df_toxic)
+```
+
+# Have a look
+
+```{r}
+X_train
+as.data.frame(Y_train) 
+X_test
+as.data.frame(Y_test)
+```
+
+
+# Train the model
+
+```{r}
+tic("Training: ")
+
+f = svm(X_train,Y_train,kernel = 'linear')
+#f = svm(Xl,Yl,kernel = 'radial',gamma = 0.1)
+
+toc(log = TRUE)
+```
+This takes some time...
+
+What's in f ?
+
+```{r}
+f
+```
+
+
+Let's do the inference on the test set now.
+
+```{r}
+# Do the inference on the test set
+tic("Inference: ")
+labels = predict(f,X_test)
+toc(log = TRUE)
+Y_pred = as.data.frame(labels)
+Y_pred
+```
+
+
+What does the confusion matrix gives us?
+
+```{r}
+writeLines("\n")
+mat = confusionMatrix(Y_test, Y_pred$labels)
+mat
+```
+
+```{r}
+print("END: all the notebook ran.")
+Sys.time()
+
+writeLines(paste0("File: ", fileName))
+writeLines(paste0("Accuracy: ", mat$overall[1]))
+writeLines(paste0(tic.log(format = TRUE)[1][1]))
+writeLines(paste0(tic.log(format = TRUE)[2][1]))
+```
+
+## Results
+
+### bow_tfidf__min_words_100_2grams_1000__sampling_balanced__cor_cut_0.001_from_1408_to_32.csv
+
+Kernel: linear
+Accuracy: 0.569683413626979
+Training: : 208.52 sec elapsed
+Inference: : 27.52 sec elapsed
+
