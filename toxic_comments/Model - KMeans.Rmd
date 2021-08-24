@@ -1,0 +1,102 @@
+---
+title: "K Means"
+output: html_notebook
+---
+
+
+
+```{r}
+library(tidyverse)
+library(tictoc)
+library(caret)
+library(ggfortify)
+library(MASS)
+library(cluster)
+library(class)
+source("./parameters.R")
+```
+
+# Set the value of K
+
+```{r}
+k = 2
+```
+
+
+# Open the data set
+
+```{r}
+# Open the bag of words
+fileName = "bow_tfidf__min_words_100_2grams_1000__sampling_balanced__cor_cut_0.01_from_1408_to_83_rm0.csv"
+df = read_csv(fileName, col_types=col_types_df)
+df = df[,-c(2,3,5:9)]
+# During tests, we can work on a sample
+sampled = TRUE
+if (sampled == TRUE) {
+  set.seed(42)
+  max = nrow(df)
+  sampled = round(max/10)
+  df = df[sample(max, sampled), ]
+}
+# show the data set
+df
+```
+
+# Splitting the data
+
+KMeans is a clustering technique so we can get ride of the train/test split and the labels.
+
+```{r}
+X = df[,-c(1,2)]
+X
+```
+
+# Run KMeans
+
+```{r}
+out = kmeans(X,k)
+#out
+```
+Show some plots
+
+```{r fig.width=20}
+set.seed(42)
+max = ncol(X)
+sampled = 8
+X_s = X[,sample(max, sampled)]
+pairs(X_s,col=out$cluster,pch=19)
+```
+
+Explore the potentially good values of K
+
+```{r}
+Kmax = 16
+J = rep(NA,Kmax)
+for (k in 1:Kmax){
+  out = kmeans(X,k)
+  J[k] = out$betweenss / out$totss
+}
+plot(J,type='b')
+```
+Running different intializations
+
+```{r}
+Kmax = 10
+J = matrix(NA,Kmax,10)
+for (k in 1:Kmax){
+  for (i in 1:10){
+    out = kmeans(X,k)
+  J[k,i] = out$betweenss / out$totss
+  }
+}
+boxplot(t(J),type='b')
+```
+
+
+
+
+
+
+
+
+

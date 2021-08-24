@@ -1,0 +1,56 @@
+---
+title: "HDDC"
+output: html_notebook
+---
+
+
+
+```{r}
+library(tidyverse)
+library(tictoc)
+library(caret)
+library(MBCbook)
+library(HDclassif)
+source("./parameters.R")
+```
+
+
+# Open the data set
+
+```{r}
+# Open the data set
+fileName = "bow_tfidf__min_words_100_2grams_1000__sampling_balanced__cor_cut_0.01_from_1408_to_83_rm0.csv"
+df = read_csv(fileName, col_types=col_types_df)
+df = df[,-c(2,3,5:9)]
+# During tests, we can work on a sample
+sampled = TRUE
+if (sampled == TRUE) {
+  set.seed(42)
+  max = nrow(df)
+  sampled = round(max/10)
+  df = df[sample(max, sampled), ]
+}
+# show the data set
+df
+```
+
+# Splitting the data
+
+We are using a clustering technique so we just need to extract the features.
+
+```{r}
+X = df[,-c(1,2)]
+X
+```
+
+# Run the model
+
+See the documentation there: https://cran.r-project.org/web/packages/mclust/vignettes/mclust.html
+
+```{r}
+out = hddc(X,K = 2)
+```
+
+```{r}
+out$class
+```

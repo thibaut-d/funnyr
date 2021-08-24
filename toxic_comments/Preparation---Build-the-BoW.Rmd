@@ -1,0 +1,207 @@
+---
+title: "Build Bag of Words embedding"
+output: html_notebook
+---
+
+This notebook creates a Bag of Words embedding of the data set
+
+
+```{r}
+library(magrittr)
+library(tidyverse)
+library(caret)
+library(tictoc)
+source("../bow_creation.R")
+source("./parameters.R")
+
+# Rich error reporting
+options(error = function() {
+  sink(stderr())
+  on.exit(sink(NULL))
+  traceback(3, max.lines = 1L)
+  if (!interactive()) {
+    q(status = 1)
+  }
+})
+```
+
+# Parameters
+
+These are the main parameters used for the generation of the Bag of Words.
+
+```{r}
+# Number of lines sampled from the data set (to reduce computing times during the exercise)
+lines_sampled = "balanced"
+
+# Minimal number of occurrences of a word in the corpus to be taken into the bag of words
+min_word_occurence = 100
+
+# Minimal number of occurrences of a nGram in the corpus to be taken into the bag of words
+min_ngram_occurence = 1000
+
+# Shall we use bigrams, trigrams, more?
+nGrams=2
+
+# Weighting function used for the Bag of Words
+# Possible values: "bin", "tf", "tfidf"
+weighting = "tfidf"
+
+# Language of the sentences ("en", "fr"...)
+language="en"
+
+# Cutoff for the ratio of correlation. Features over-correlated are deleted.
+cutoff = 0.1
+
+```
+
+
+
+# Open the cleaned data set
+
+```{r}
+# Initialize a time counter
+tic("Time to run all")
+# Open the CSV
+df = read_csv("cleaned.csv",col_types=col_types)
+# For the purpose of speeding the experimentation we will work on a sample of the data frame only
+set.seed(42)
+if (lines_sampled == "balanced") {
+  # Split the data set between toxic and non-toxic
+  df_toxic = df[df$toxic == 1,]
+  df_ok = df[df$toxic == 0,]
+  # Since non toxic is around 10 time bigger than toxic, sample it to the same size
+  df_ok_sampled = df_ok[sample(nrow(df_ok), nrow(df_toxic)), ]
+  # Merge back the two data frames per row
+  df = bind_rows(df_ok_sampled,df_toxic)
+} else if (lines_sampled > 0) {
+  df = df[sample(nrow(df), lines_sampled), ]
+}
+df
+```
+
+# Create the bag of words
+
+Get the weighting function to use according to the tag
+
+```{r}
+# Possible weighting functions
+weighting_functions = vector(mode="list", length=3)
+weighting_functions$bin = weightBin
+weighting_functions$tf = weightTf
+weighting_functions$tfidf = weightTfIdf
+
+
+weighting_function = weighting_functions[weighting]
+
+# weighting_function
+```
+
+Run the function to get a bag of words
+
+```{r}
+# Build the bag of words
+tic("Bag of words creation")
+bow = bag_of_words(df,"comment_text",min_word_occurence,min_ngram_occurence,nGrams,weighting_function,language)
+toc()
+bow
+```
+
+Store the original length of the BOW
+
+```{r}
+bow_original_length = dim(bow)[2]
+bow_original_length
+```
+
+
+# Find and delete highly correlated variables
+
+
+```{r}
+writeLines(paste0("Looking for correlations with cutoff: ", cutoff, " on ", bow_original_length, " features."))
+
+# Find the correlated columns
+tic("Find correlations:")
+# Build the correlation matrix
+cor_mat = cor(bow)
+# Find correlations using it
+highlyCor = findCorrelation(cor_mat, cutoff = cutoff, verbose = FALSE, exact = TRUE)
+toc()
+
+# Count it for info
+qty_of_hc = length(highlyCor)
+writeLines(paste0("Number of highly correlated features found: ", qty_of_hc))
+
+pruned_bow = bow
+
+# Delete if needed
+if (qty_of_hc > 0) {
+  pruned_bow = bow[,-as.vector(highlyCor)]
+} else {
+  print("No features removed")
+}
+
+# Store the dimensions of the Bow afterwards
+bow_final_length = dim(pruned_bow)[2]
+writeLines(paste0("Remaning features: ", bow_final_length))
+```
+
+
+
+# Build the data set
+
+```{r}
+# Prefix the column names of the original df to avoid collision with words from BoW
+prefixed_df_cols = paste("df", colnames(df), sep = "_")
+colnames(df) = prefixed_df_cols
+# Bind the original data frame and the bow
+df_bow = bind_cols(df,pruned_bow)
+# Clean NA values, in case of
+df_bow %<>% drop_na()
+# show
+df_bow
+```
+
+Here we can cheat and deactivate rows full of zeros.
+We will not cheat...
+
+```{r}
+# Go through each row, return TRUE is at least one value is not zero
+non_zero_rows = apply(df_bow[,-(1:9)], 1, function(row) any(row !=0 ))
+writeLines(paste0("Rows full of zeros: ",sum(!non_zero_rows, na.rm = TRUE)))
+# Subset
+# df_bow = df_bow[non_zero_rows,]
+# writeLines(paste0("Remaning rows: ",dim(df_bow)[1]))
+```
+
+# Store the resulting dataset
+
+
+```{r}
+# Clean NA values, in case of
+df_bow %<>% drop_na()
+# Define a file name with parametric values
+df_bow_name = sprintf("bow_%s__min_words_%s_%sgrams_%s__sampling_%s__cor_cut_%s_from_%s_to_%s.csv",
+                      weighting,
+                      min_word_occurence,
+                      nGrams,
+                      min_ngram_occurence,
+                      lines_sampled,
+                      cutoff,
+                      bow_original_length,
+                      bow_final_length
+                      )
+# Write it
+write_csv(df_bow,file=df_bow_name)
+# check the final result
+df_bow
+```
+
+
+```{r}
+# Timestamp to know when was the last full run
+writeLines(paste0("Finished on: ", Sys.time()))
+writeLines(paste0("Created file: ", df_bow_name))
+toc()
+```
+

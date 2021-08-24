@@ -1,0 +1,83 @@
+---
+title: "Logistic regressions in a loop"
+output: html_notebook
+---
+
+This notebook run several logistic regressions in a loop in order to compare the effect of several parameters
+
+```{r}
+library(tidyverse)
+library(tictoc)
+library(caret)
+library(e1071)
+source("./parameters.R")
+```
+
+Define the files to work on:
+
+```{r}
+fileNames = c(
+  "bow_tfidf__min_words_100_2grams_1000__sampling_balanced__cor_cut_0.38_from_1408_to_1182.csv",
+  "bow_tfidf__min_words_100_2grams_1000__sampling_balanced__cor_cut_0.385_from_1408_to_1187.csv",
+  "bow_tfidf__min_words_100_2grams_1000__sampling_balanced__cor_cut_0.39_from_1408_to_1191.csv",
+  "bow_tfidf__min_words_100_2grams_1000__sampling_balanced__cor_cut_0.435_from_1408_to_1212.csv",
+  "bow_tfidf__min_words_100_2grams_1000__sampling_balanced__cor_cut_0.535_from_1408_to_1264.csv",
+  "bow_tfidf__min_words_100_2grams_1000__sampling_balanced__cor_cut_0.7_from_1408_to_1341.csv",
+  "bow_tfidf__min_words_100_2grams_1000__sampling_balanced__cor_cut_0.8_from_1408_to_1362.csv",
+  "bow_tfidf__min_words_100_2grams_1000__sampling_balanced__cor_cut_0.9_from_1408_to_1389.csv"
+)
+```
+
+Begin to loop
+
+```{r}
+for (fileName in fileNames) {
+
+writeLines(paste0("\n\n>>> Starting: ", fileName))  
+  
+# Open the dataset
+df = read_csv(fileName, col_types=col_types_df)
+
+# Remove unused columns
+df = df[,-c(2,3,5:9)]
+
+# Split between the test and train set
+df_train = df[df[1] == 1,-1]
+df_test  = df[df[1] == 2,-1]
+
+# Train the logistic regression
+tic("Training: ")
+f <- glm(df_toxic ~ ., data=df_train, family = 'binomial', maxit=100)
+toc(log = TRUE)
+
+# Split the test set
+X_test = df_test[,-1]
+Y_test = df_test$df_toxic
+
+# Do the inference on the test set
+tic("Inference: ")
+Y_pred <- predict(f,X_test,type='response')
+toc(log = TRUE)
+
+# Add the predictions class and compare to the real values
+predictions = as.data.frame(Y_pred)
+predictions$predictions = round(predictions$Y_pred)
+predictions$real = Y_test
+
+# What does the confusion matrix gives us?
+writeLines("\n")
+mat = confusionMatrix(as.factor(Y_test), as.factor(predictions$predictions))
+print(mat)
+
+# Print the conclusions
+print("END: all the notebook ran.")
+print(Sys.time())
+
+writeLines(paste0("File: ", fileName))
+writeLines(paste0("Accuracy: ", mat$overall[1]))
+writeLines(paste0(tic.log(format = TRUE)[1][1]))
+writeLines(paste0(tic.log(format = TRUE)[2][1]))
+
+}
+```
+

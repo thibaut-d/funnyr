@@ -1,0 +1,119 @@
+---
+title: "KNN"
+output: html_notebook
+---
+
+We will compare some classifiers on the "Toxic" column.
+
+Load libraries
+
+```{r}
+library(tidyverse)
+library(tictoc)
+library(caret)
+library(class)
+source("./parameters.R")
+```
+
+# Set the value of K for the run
+
+```{r}
+# Number of nearest neighbors taken into account
+k = 5
+```
+
+
+# Open the Bag of Word with labels
+
+```{r}
+# We open a relatively small Bag of Words in order to limit calculation time
+fileName = "bow_tfidf__min_words_100_2grams_1000__sampling_balanced__cor_cut_0.3_from_1408_to_1110_rm0.csv"
+df = read_csv(fileName, col_types=col_types_df)
+df = df[,-c(2,3,5:9)]
+df
+```
+# Remove lines full of zeros
+
+KNN is not really friend with lines full of zeros in the bag of words.
+All these lines have way to many neighbors.
+So let's ensure there is none.
+
+```{r}
+# Go through each row, return TRUE is at least one value is not zero
+non_zero_rows = apply(df[,-1], 1, function(row) any(row !=0 ))
+writeLines(paste0("Rows full of zeros: ",sum(!non_zero_rows, na.rm = TRUE)))
+# Subset
+df = df[non_zero_rows,]
+writeLines(paste0("Remaning rows: ",dim(df)[1]))
+```
+
+
+# Splitting the data
+
+```{r}
+# Split between train and test
+df_train = df[df[1] == 1,-1]
+df_test  = df[df[1] == 2,-1]
+
+# Split the test set between features and labels
+X_train = df_train[,-1]
+Y_train = df_train$df_toxic
+
+# Split the train set between features and labels
+X_test = df_test[,-1]
+Y_test = df_test$df_toxic
+```
+
+# Have a look
+
+```{r}
+X_train
+as.data.frame(Y_train) 
+X_test
+as.data.frame(Y_test)
+```
+
+
+# Train the model
+
+```{r}
+tic("Training: ")
+
+f <- knn(X_train, X_test, Y_train, k = k)
+
+toc(log = TRUE)
+```
+This takes some time...
+
+What's in f ?
+
+```{r}
+f
+```
+
+
+What does the confusion matrix gives us?
+
+```{r}
+writeLines("\n")
+mat = confusionMatrix(Y_test, as.factor(f))
+mat
+```
+
+```{r}
+print("END: all the notebook ran.")
+Sys.time()
+
+writeLines(paste0("File: ", fileName))
+writeLines(paste0("Parameter k: ", k))
+writeLines(paste0("Accuracy: ", mat$overall[1]))
+writeLines(paste0(tic.log(format = TRUE)[1][1]))
+writeLines(paste0(tic.log(format = TRUE)[2][1]))
+```
+
+## Results
+
+### bow_tfidf__min_words_100_2grams_1000__sampling_balanced__cor_cut_0.001_from_1408_to_32.csv
+
+
+

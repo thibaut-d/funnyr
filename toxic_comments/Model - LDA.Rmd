@@ -1,0 +1,148 @@
+---
+title: "LDA"
+output: html_notebook
+---
+
+
+We will compare some classifiers on the "Toxic" column.
+
+Load libraries
+
+```{r}
+library(tidyverse)
+library(tictoc)
+library(caret)
+library(MASS)
+source("./parameters.R")
+```
+
+
+# Open the Bag of Word with labels
+
+```{r}
+# Open the bag of words
+fileName = "bow_tfidf__min_words_100_2grams_1000__sampling_balanced__cor_cut_0.5_from_1408_to_1247_rm0.csv"
+df = read_csv(fileName, col_types=col_types_df)
+df = df[,-c(2,3,5:9)]
+# During tests, we can work on a sample
+sampled = FALSE
+if (sampled == TRUE) {
+  set.seed(42)
+  max = nrow(df)
+  sampled = round(max/10)
+  df = df[sample(max, sampled), ]
+}
+# show the data set
+df
+```
+
+
+# Splitting the data
+
+```{r}
+# Split between train and test
+df_train = df[df[1] == 1,-1]
+df_test  = df[df[1] == 2,-1]
+
+# Split the test set between features and labels
+X_train = df_train[,-1]
+Y_train = as.factor(df_train$df_toxic)
+
+# Split the train set between features and labels
+X_test = df_test[,-1]
+Y_test = as.factor(df_test$df_toxic)
+```
+
+# Have a look
+
+```{r}
+X_train
+as.data.frame(Y_train) 
+X_test
+as.data.frame(Y_test)
+```
+
+
+# Train the model
+
+```{r}
+tic("Training: ")
+
+f <- lda(X_train,Y_train)
+
+toc(log = TRUE)
+```
+This takes some time...
+
+What's in f ?
+
+```{r}
+#f
+```
+
+
+Let's do the inference on the test set now.
+
+```{r}
+# Do the inference on the test set
+tic("Inference: ")
+predictions = predict(f,X_test)
+toc(log = TRUE)
+Y_pred = as.data.frame(predictions)
+Y_pred
+```
+
+
+What does the confusion matrix gives us?
+
+```{r}
+writeLines("\n")
+mat = confusionMatrix(Y_test, as.factor(Y_pred$class))
+mat
+```
+
+```{r}
+print("END: all the notebook ran.")
+Sys.time()
+
+writeLines(paste0("File: ", fileName))
+writeLines(paste0("Accuracy: ", mat$overall[1]))
+writeLines(paste0(tic.log(format = TRUE)[1][1]))
+writeLines(paste0(tic.log(format = TRUE)[2][1]))
+```
+
+## Results
+
+### bow_tfidf__min_words_100_2grams_1000__sampling_balanced__cor_cut_0.3_from_1408_to_1110_rm0.csv
+
+Accuracy: 0.735107618111994
+Training: : 0.1 sec elapsed
+Inference: : 0.11 sec elapsed
+
+Reference
+Prediction    0    1
+         0 3719 1847
+         1 1119 4512
+         
+### bow_tfidf__min_words_100_2grams_1000__sampling_balanced__cor_cut_0.3_from_1408_to_1110.csv
+
+Accuracy: 0.725739848589126
+Training: : 179.6 sec elapsed
+Inference: : 6.01 sec elapsed
+
+Reference
+Prediction    0    1
+         0 3708 2075
+         1 1113 4728
+         
+         
+### bow_tfidf__min_words_100_2grams_1000__sampling_balanced__cor_cut_0.5_from_1408_to_1247_rm0.csv
+
+Accuracy: 0.734036012296882
+Training: : 179.6 sec elapsed
+Inference: : 6.01 sec elapsed
+
+Reference
+Prediction    0    1
+         0 3714 1916
+         1 1112 4643
